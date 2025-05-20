@@ -1,0 +1,14 @@
+May 20 00:01:10 server01 sshd[1060]: Failed password for root from 192.168.1.10 port 44123 ssh2
+May 20 00:01:11 server01 sshd[1060]: Failed password for root from 192.168.1.10 port 44124 ssh2
+May 20 00:01:12 server01 sshd[1060]: Failed password for root from 192.168.1.10 port 44125 ssh2
+May 20 00:03:18 server01 sshd[1075]: Accepted password for user1 from 10.0.0.15 port 55321 ssh2
+May 20 01:45:11 server01 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/bin/ls
+May 20 02:02:45 mailhost postfix/smtpd[2004]: connect from unknown[203.0.113.15]
+May 20 02:02:50 mailhost postfix/smtpd[2004]: disconnect from unknown[203.0.113.15]
+May 20 05:17:01 server01 CRON[13041]: (root) CMD (run-parts /etc/cron.hourly)
+May 20 06:05:10 server01 systemd[1]: Starting Daily apt upgrade and clean activities...
+May 20 06:05:15 server01 systemd[1]: Started Daily apt upgrade and clean activities.
+May 20 09:22:03 webhost nginx[20023]: 10.10.1.15 - - [20/May/2025:09:22:03 +0000] "GET /index.html HTTP/1.1" 200 1024 "-" "Mozilla/5.0"
+May 20 10:30:27 webhost nginx[20023]: 172.16.2.17 - - [20/May/2025:10:30:27 +0000] "POST /login HTTP/1.1" 401 430 "-" "Mozilla/5.0"
+May 20 12:10:22 server02 systemd[1]: apt-daily-upgrade.timer: Adding 2h 14min 20.726547s random time.
+

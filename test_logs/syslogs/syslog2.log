@@ -1,0 +1,14 @@
+May 20 02:12:01 host1 sshd[1175]: Failed password for root from 192.168.1.8 port 54122 ssh2
+May 20 02:12:03 host1 sshd[1175]: Failed password for root from 192.168.1.8 port 54123 ssh2
+May 20 02:12:05 host1 sshd[1175]: Failed password for root from 192.168.1.8 port 54124 ssh2
+May 20 02:12:08 host1 sshd[1175]: Failed password for root from 192.168.1.8 port 54125 ssh2
+May 20 02:12:12 host1 sshd[1175]: Failed password for root from 192.168.1.8 port 54126 ssh2
+May 20 02:12:15 host1 sshd[1175]: Failed password for root from 192.168.1.8 port 54127 ssh2
+May 20 03:03:09 host1 sshd[1178]: Accepted password for user1 from 192.168.1.100 port 55100 ssh2
+May 20 04:50:05 host1 sudo:   attacker : TTY=pts/2 ; PWD=/root ; USER=root ; COMMAND=/bin/rm -rf /
+May 20 05:13:34 host1 sudo:   root : TTY=pts/0 ; PWD=/root ; USER=root ; COMMAND=/bin/ls
+May 20 10:24:10 mailhost postfix/smtpd[1201]: connect from unknown[203.0.113.99]
+May 20 10:24:13 mailhost postfix/smtpd[1201]: lost connection after AUTH from unknown[203.0.113.99]
+May 20 11:01:05 host2 systemd[1]: Starting Daily apt upgrade and clean activities...
+May 20 11:01:08 host2 systemd[1]: Started Daily apt upgrade and clean activities.
+May 20 23:55:01 host1 CRON[2500]: (root) CMD (run-parts /etc/cron.hourly)

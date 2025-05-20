@@ -1,0 +1,57 @@
+# Normale Zugriffe
+192.168.1.101 - - [21/May/2025:08:20:12 +0000] "GET /index.html HTTP/1.1" 200 3123
+192.168.1.102 - - [21/May/2025:08:21:02 +0000] "GET /about.html HTTP/1.1" 200 1123
+192.168.1.101 - - [21/May/2025:08:21:14 +0000] "GET /contact.html HTTP/1.1" 200 523
+
+# SQL Injection-Versuch
+203.0.113.1 - - [21/May/2025:12:44:10 +0000] "GET /login.php?username=admin&password=' OR 1=1 -- HTTP/1.1" 200 1032
+
+# Directory Traversal-Versuch
+203.0.113.2 - - [21/May/2025:13:11:52 +0000] "GET /../../etc/passwd HTTP/1.1" 404 98
+203.0.113.2 - - [21/May/2025:13:12:10 +0000] "GET /..%2f..%2f..%2fwindows%2fwin.ini HTTP/1.1" 404 65
+
+# Brute-Force (mehrere fehlgeschlagene Logins in kurzer Zeit)
+203.0.113.5 - - [21/May/2025:01:02:10 +0000] "POST /login HTTP/1.1" 401 234
+203.0.113.5 - - [21/May/2025:01:02:15 +0000] "POST /login HTTP/1.1" 401 231
+203.0.113.5 - - [21/May/2025:01:02:18 +0000] "POST /login HTTP/1.1" 401 231
+203.0.113.5 - - [21/May/2025:01:02:21 +0000] "POST /login HTTP/1.1" 401 231
+203.0.113.5 - - [21/May/2025:01:02:29 +0000] "POST /login HTTP/1.1" 401 231
+203.0.113.5 - - [21/May/2025:01:02:39 +0000] "POST /login HTTP/1.1" 401 231
+
+# Viele Fehler (4xx/5xx) – Scanner/Automatisierung
+203.0.113.10 - - [21/May/2025:17:18:22 +0000] "GET /phpmyadmin HTTP/1.1" 404 95
+203.0.113.10 - - [21/May/2025:17:18:30 +0000] "GET /.git/config HTTP/1.1" 404 31
+203.0.113.10 - - [21/May/2025:17:18:33 +0000] "GET /config.php HTTP/1.1" 404 35
+203.0.113.10 - - [21/May/2025:17:18:36 +0000] "GET /backup.zip HTTP/1.1" 404 33
+203.0.113.10 - - [21/May/2025:17:18:39 +0000] "GET /test.php HTTP/1.1" 404 27
+203.0.113.10 - - [21/May/2025:17:18:41 +0000] "GET /wp-login.php HTTP/1.1" 404 28
+203.0.113.10 - - [21/May/2025:17:18:44 +0000] "GET /wp-config.php HTTP/1.1" 404 26
+203.0.113.10 - - [21/May/2025:17:18:47 +0000] "GET /.env HTTP/1.1" 404 23
+203.0.113.10 - - [21/May/2025:17:18:50 +0000] "GET /.bash_history HTTP/1.1" 404 24
+203.0.113.10 - - [21/May/2025:17:18:53 +0000] "GET /shell.php HTTP/1.1" 404 22
+203.0.113.10 - - [21/May/2025:17:18:56 +0000] "GET /admin.php HTTP/1.1" 404 27
+203.0.113.10 - - [21/May/2025:17:18:59 +0000] "GET /hidden/.env HTTP/1.1" 404 19
+203.0.113.10 - - [21/May/2025:17:19:01 +0000] "GET /.htaccess HTTP/1.1" 404 29
+
+# Nachts ungewöhnlich viele Requests
+203.0.113.20 - - [21/May/2025:02:05:01 +0000] "GET /index.html HTTP/1.1" 200 3123
+203.0.113.20 - - [21/May/2025:02:06:01 +0000] "GET /index.html HTTP/1.1" 200 3123
+203.0.113.20 - - [21/May/2025:02:06:10 +0000] "GET /index.html HTTP/1.1" 200 3123
+203.0.113.20 - - [21/May/2025:02:06:22 +0000] "GET /index.html HTTP/1.1" 200 3123
+203.0.113.20 - - [21/May/2025:02:07:01 +0000] "GET /index.html HTTP/1.1" 200 3123
+203.0.113.20 - - [21/May/2025:02:08:01 +0000] "GET /index.html HTTP/1.1" 200 3123
+203.0.113.20 - - [21/May/2025:02:09:01 +0000] "GET /index.html HTTP/1.1" 200 3123
+203.0.113.20 - - [21/May/2025:02:10:01 +0000] "GET /index.html HTTP/1.1" 200 3123
+203.0.113.20 - - [21/May/2025:02:11:01 +0000] "GET /index.html HTTP/1.1" 200 3123
+203.0.113.20 - - [21/May/2025:02:12:01 +0000] "GET /index.html HTTP/1.1" 200 3123
+203.0.113.20 - - [21/May/2025:02:13:01 +0000] "GET /index.html HTTP/1.1" 200 3123
+
+# Noch ein SQLi-Test mit encoded Pattern
+203.0.113.51 - - [21/May/2025:14:22:16 +0000] "GET /search.php?q=%27%20or%201%3d1 HTTP/1.1" 200 512
+
+# Noch ein Traversal mit encoded Pattern
+203.0.113.53 - - [21/May/2025:15:22:16 +0000] "GET /%2e%2e/%2e%2e/%2e%2e/etc/passwd HTTP/1.1" 404 36
+
+# Unauffällige Requests (sollten keinen Alarm geben)
+192.168.1.111 - - [21/May/2025:16:10:21 +0000] "GET /impressum.html HTTP/1.1" 200 1420
+192.168.1.120 - - [21/May/2025:16:10:50 +0000] "GET /privacy.html HTTP/1.1" 200 950

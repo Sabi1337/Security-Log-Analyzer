@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>Security Log Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Security Log Analyzer</h1>
+<div class="supported-info">
+    <b>Unterstützte Logformate:</b>
+    Apache access.log, nginx access.log, syslog<br>
+    <b>Automatische Security-Checks:</b>
+    Brute-Force-Erkennung, viele Fehler (4xx/5xx), ungewöhnliche Zugriffszeiten (nachts), SQL-Injection, Traversal/Scanner-Angriffe, häufigste Endpunkte & IPs
+</div>
+
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" name="logfile" accept=".log,.txt" required>
+        <button type="submit">Upload & Analyze</button>
+    </form>
+
+    <div id="alerts"></div>
+    <button id="exportCsvBtn" style="margin-top:10px;">Export als CSV</button>
+
+    <div id="dashboard" style="display:none;">
+        <div class="dashboard-grid">
+            <div class="box" id="overview-box">
+                <h2>Übersicht</h2>
+                <p><b>Anzahl Requests:</b> <span id="totalRequests"></span></p>
+                <p><b>Top 5 IPs:</b> <span id="topIps"></span></p>
+                <p><b>Häufigste Endpunkte:</b> <span id="topUrls"></span></p>
+            </div>
+            <div class="box" id="statuscode-box">
+                <h2>Statuscode-Verteilung</h2>
+                <canvas id="statusChart"></canvas>
+            </div>
+            <div class="box" id="ips-box">
+                <h2>Top 5 IPs (Balkendiagramm)</h2>
+                <canvas id="ipChart"></canvas>
+            </div>
+            <div class="box" id="alerts-box">
+                <h2>Security Alerts</h2>
+                <div id="securityAlerts"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+May 20 01:55:02 server01 sshd[1201]: Failed password for root from 192.168.1.10 port 43890 ssh2
+May 20 01:55:03 server01 sshd[1201]: Failed password for root from 192.168.1.10 port 43891 ssh2
+May 20 01:55:05 server01 sshd[1201]: Failed password for root from 192.168.1.10 port 43892 ssh2
+May 20 01:56:10 server01 sshd[1202]: Accepted password for user1 from 10.10.10.10 port 55300 ssh2
+May 20 08:23:44 server01 sudo:   alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/bin/ls
+May 20 10:05:00 mailhost postfix/smtpd[2304]: connect from unknown[203.0.113.7]
+May 20 10:05:05 mailhost postfix/smtpd[2304]: lost connection after EHLO from unknown[203.0.113.7]
+May 20 12:10:22 host2 systemd[1]: Started Daily apt upgrade and clean activities.
+May 20 12:11:10 host2 systemd[1]: apt-daily-upgrade.timer: Adding 2h 14min 20.726547s random time.
+# Fehlerhafte Zeile, total untypisch
+dies ist keine syslog zeile und sollte übersprungen werden
+May 20 12:16:01 host2 CRON[4102]: (root) CMD (   cd / && run-parts --report /etc/cron.hourly)

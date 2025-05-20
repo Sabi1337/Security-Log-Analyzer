@@ -1,0 +1,120 @@
+' or 1=1
+" or 1=1
+' OR 'a'='a
+" OR "a"="a
+UNION SELECT
+SELECT *
+SELECT user
+SELECT password
+SELECT username
+SELECT name
+SELECT database
+SELECT version
+SELECT table
+SELECT column
+SELECT from
+SELECT top
+SELECT char
+SELECT cast
+SELECT convert
+SELECT count
+SELECT concat
+SELECT group_concat
+INSERT INTO
+UPDATE SET
+DELETE FROM
+WHERE 1=1
+WHERE 1=0
+' --
+' --
+'--
+"--
+' or 1=1 --
+" or 1=1 --
+' or '1'='1
+" or "1"="1
+admin' --
+admin'#
+OR TRUE--
+OR FALSE--
+OR 1=1#
+OR 1=1--
+OR 'a'='a
+OR 1=1/*
+--
+#
+/*
+xp_cmdshell
+benchmark(
+sleep(
+load_file(
+outfile
+dumpfile
+information_schema
+current_user
+current_database
+@@version
+@@datadir
+@@hostname
+@variable
+admin'--
+admin' #
+1=1
+or true--
+or false--
+' or 'x'='x
+" or "x"="x
+%27%20or%201%3D1
+%27%20OR%20%271%27%3D%271
+' or sleep(
+' or benchmark(
+" or sleep(
+" or benchmark(
+waitfor delay
+WAITFOR DELAY
+exec master
+exec xp_
+sysobjects
+syscolumns
+openrowset
+--sp_password
+;--
+; #
+; drop
+; delete
+; insert
+; update
+; select
+; exec
+; union
+union all select
+having 1=1
+having true
+having false
+1 or 1=1
+0 or 0=0
+1=1
+AND 1=1
+OR 1=1
+OR 1=0
+order by 1--
+order by 2--
+order by 3--
+'
+"
+\
+%
+=
+^
+|
+`
+~
+$
+(
+)
+[
+]
+{
+}
+*
+!
