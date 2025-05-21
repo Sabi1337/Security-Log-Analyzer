@@ -3,6 +3,16 @@
 Ein leichtgewichtiges Python-Tool zur Analyse von Webserver-Logs (Apache, Nginx, Syslog) mit Fokus auf die Erkennung von Sicherheitsbedrohungen wie Brute-Force-Angriffe, SQL-Injection und Directory Traversal.
 
 ---
+## Bedeutung der Log-Analyse in der IT-Security
+Das strukturierte Auswerten von Logfiles ist ein zentrales Element in der modernen IT-Security. Logdaten ermöglichen es, sicherheitsrelevante Ereignisse wie Angriffsversuche, Fehlkonfigurationen oder ungewöhnliche Aktivitäten frühzeitig zu erkennen und gezielt darauf zu reagieren. Die Fähigkeit, Logdaten effizient zu analysieren und daraus Maßnahmen abzuleiten, ist heute in nahezu allen Bereichen der Informationssicherheit von zentraler Bedeutung.
+
+---
+
+# Beispielauswertung: Dashboard, Statuscodes & Security Alerts
+![Übersicht,Statuscodeverteilung](https://github.com/user-attachments/assets/a4dc35c0-5270-495d-870d-271e44aa2bb5)
+![Balken,Security Alerts](https://github.com/user-attachments/assets/5a205a25-8b70-4bb4-9abf-7e4e44197f30)
+
+
 
 ## Funktionen
 
