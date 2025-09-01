@@ -1,51 +1,61 @@
 <!doctype html>
 <html lang="de">
 <head>
-    <meta charset="utf-8">
-    <title>Security Log Analyzer</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <meta charset="utf-8">
+  <title>Security Log Analyzer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
 </head>
 <body>
-    <h1>Security Log Analyzer</h1>
-<div class="supported-info">
-    <b>Unterstützte Logformate:</b>
-    Apache access.log, nginx access.log, syslog<br>
-    <b>Automatische Security-Checks:</b>
-    Brute-Force-Erkennung, viele Fehler (4xx/5xx), ungewöhnliche Zugriffszeiten (nachts), SQL-Injection, Traversal/Scanner-Angriffe, häufigste Endpunkte & IPs
-</div>
+  <header class="container header">
+    <h1>🔎 Security Log Analyzer</h1>
+    <nav>
+      <a class="btn ghost" href="https://github.com/Sabi1337/Security-Log-Analyzer" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </header>
 
-    <form id="uploadForm" enctype="multipart/form-data">
-        <input type="file" name="logfile" accept=".log,.txt" required>
-        <button type="submit">Upload & Analyze</button>
-    </form>
+  <main class="container">
+    <section class="card">
+      <h2>Logdatei analysieren (stateless)</h2>
 
-    <div id="alerts"></div>
-    <button id="exportCsvBtn" style="margin-top:10px;">Export als CSV</button>
+      <div class="upload">
+        <input id="fileInput" type="file" accept=".log,.txt">
+        <button class="btn" id="btnAnalyzeFile" type="button">Datei analysieren</button>
+      </div>
 
-    <div id="dashboard" style="display:none;">
-        <div class="dashboard-grid">
-            <div class="box" id="overview-box">
-                <h2>Übersicht</h2>
-                <p><b>Anzahl Requests:</b> <span id="totalRequests"></span></p>
-                <p><b>Top 5 IPs:</b> <span id="topIps"></span></p>
-                <p><b>Häufigste Endpunkte:</b> <span id="topUrls"></span></p>
-            </div>
-            <div class="box" id="statuscode-box">
-                <h2>Statuscode-Verteilung</h2>
-                <canvas id="statusChart"></canvas>
-            </div>
-            <div class="box" id="ips-box">
-                <h2>Top 5 IPs (Balkendiagramm)</h2>
-                <canvas id="ipChart"></canvas>
-            </div>
-            <div class="box" id="alerts-box">
-                <h2>Security Alerts</h2>
-                <div id="securityAlerts"></div>
-            </div>
-        </div>
-    </div>
+      <details style="margin-top:10px;">
+        <summary>optional Logtext einfügen</summary>
+        <textarea id="logText" rows="6" style="width:100%;" placeholder="Füge hier Logzeilen ein (Apache, Nginx, Syslog)…"></textarea>
+        <button class="btn" id="btnAnalyzeText" type="button" style="margin-top:8px;">Text analysieren</button>
+      </details>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="{{ url_for('static', filename='main.js') }}"></script>
+      <form id="csvForm" action="/export.csv" method="post"></form>
+
+      <p class="hint">Hinweis: Es wird nichts auf dem Server gespeichert – Verarbeitung erfolgt nur im RAM.</p>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h3>Top IPs</h3>
+        <canvas id="ipChart" aria-label="Top IPs"></canvas>
+      </div>
+      <div class="card">
+        <h3>Statuscodes</h3>
+        <canvas id="statusChart" aria-label="Statuscodes"></canvas>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Security Alerts</h3>
+      <div id="securityAlerts" class="alerts">Noch keine Daten. Wähle eine Datei oder füge Text ein.</div>
+    </section>
+  </main>
+
+  <footer class="container footer">
+    <small>© 2025 Security Log Analyzer</small>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
 </body>
 </html>

@@ -1,3 +1,6 @@
 flask
-werkzeug
+requests
+python-dotenv
+pyyaml
 pytest
+gunicorn

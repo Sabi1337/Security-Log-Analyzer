@@ -1,0 +1,6 @@
+/config.php
+/wp-config.php
+/.env
+/.git/config
+/phpmyadmin
+/backup.zip

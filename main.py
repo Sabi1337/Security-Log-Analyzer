@@ -1,346 +1,135 @@
-import os
-import re
-import csv
-import io
-from collections import Counter, defaultdict
-from datetime import datetime
-from flask import Flask, request, render_template, redirect, url_for, flash, jsonify, send_file
+import os, io, csv
+from flask import Flask, request, render_template, jsonify, send_file
 
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'log', 'txt'}
+from dotenv import load_dotenv
+load_dotenv()
+
+from analysis import (
+    parse_apache_log, parse_nginx_log, parse_syslog,
+    detect_bruteforce, detect_sqli, detect_traversal, detect_sensitive, detect_scanners,
+    get_top_ips, summarize_alerts, report_critical
+)
+
+
+load_dotenv()
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.secret_key = 'super-secret-key'
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "change-me")
 
-APACHE_PATTERN = re.compile(
-    r'(?P<ip>\S+) \S+ \S+ \[(?P<date>.*?)\] "(?P<request>.*?)" (?P<status>\d{3}) (?P<size>\S+)'
-)
-NGINX_PATTERN = re.compile(
-    r'(?P<ip>\S+) \S+ \S+ \[(?P<date>.*?)\] "(?P<request>.*?)" (?P<status>\d{3}) (?P<size>\S+) "(?P<referer>.*?)" "(?P<ua>.*?)"'
-)
-SYSLOG_PATTERN = re.compile(
-    r'^(?P<month>\w{3})\s+(?P<day>\d{1,2})\s+(?P<time>\d{2}:\d{2}:\d{2})\s+(?P<host>\S+)\s+(?P<service>[\w\-/]+)(?:\[\d+\])?:\s+(?P<message>.+)$'
-)
+MAX_BYTES = int(os.getenv("MAX_BYTES", "1048576"))  # 1 MB
+ENABLE_ACTIVE_ALERTS = os.getenv("ENABLE_ACTIVE_ALERTS", "0") == "1"
+MIN_ALERT_SEVERITY = os.getenv("MIN_ALERT_SEVERITY", "critical").lower()
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def load_patterns(filename):
-    patterns = []
-    with open(filename, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#"):
-                patterns.append(line.lower())
-    return patterns
-
-SQLI_PATTERNS = load_patterns("SQLI_PATTERNS.txt")
-
-def parse_apache_log(lines):
+# ---------- Parser: pro Zeile Apache/Nginx/Syslog probieren ----------
+def parse_lines(lines):
     parsed = []
     for line in lines:
-        m = APACHE_PATTERN.match(line)
-        if m:
-            data = m.groupdict()
-            try:
-                data['datetime'] = datetime.strptime(
-                    data['date'].split()[0], '%d/%b/%Y:%H:%M:%S'
-                )
-            except Exception:
-                data['datetime'] = None
-
-            req = data['request']
-            parts = req.split()
-            if len(parts) >= 3:
-                data['method'] = parts[0]
-                data['protocol'] = parts[-1]
-                data['url'] = " ".join(parts[1:-1])
-            else:
-                data['method'], data['url'], data['protocol'] = '', '', ''
-            parsed.append(data)
+        s = line.strip()
+        if not s:
+            continue
+        e = parse_apache_log(s) or parse_nginx_log(s) or parse_syslog(s)
+        if e:
+            parsed.append(e)
     return parsed
 
+def build_stats(parsed):
+    from collections import Counter
+    return {
+        "total": len(parsed),
+        "top_ips": get_top_ips(parsed, 5),
+        "statuses": sorted(
+            (k if k else 0, v) for k, v in Counter(e.get("status") for e in parsed if "status" in e).items()
+        ),
+        "bruteforce": detect_bruteforce(parsed),
+        "sqli": detect_sqli(parsed),
+        "traversal": detect_traversal(parsed),
+        "sensitive": detect_sensitive(parsed),
+        "scanners": detect_scanners(parsed),
+        "alerts": summarize_alerts(parsed),   # <- für UI
+    }
 
-def detect_sqli_attempts(parsed_logs, patterns):
-    attempts = []
-    for entry in parsed_logs:
-        url = entry.get('url', '')
-        print("Prüfe URL:", url)
-        for pat in patterns:
-            if pat in url.lower():
-                print("Treffer Pattern:", pat, "in", url)
-                attempts.append({
-                    'ip': entry.get('ip', ''),
-                    'url': url,
-                    'datetime': entry.get('datetime', '')
-                })
-                break
-    return attempts
-
-def load_traversal_patterns(filename="TRAVERSAL_PATTERNS.txt"):
-    patterns = []
-    with open(filename, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#"):
-                patterns.append(line)
-    return patterns
-
-TRAVERSAL_PATTERNS = load_traversal_patterns()
-
-def detect_traversal_attempts(parsed_logs, patterns):
-    attempts = []
-    for entry in parsed_logs:
-        url = entry.get('url', '')
-        if any(pat.lower() in url.lower() for pat in patterns):
-            attempts.append({
-                'ip': entry.get('ip', ''),
-                'url': url,
-                'datetime': entry.get('datetime', '')
-            })
-    return attempts
-
-def parse_syslog(lines):
-    parsed = []
-    for line in lines:
-        m = SYSLOG_PATTERN.match(line)
-        if m:
-            data = m.groupdict()
-            try:
-                year = datetime.now().year
-                dt_str = f"{data['month']} {data['day']} {year} {data['time']}"
-                data['datetime'] = datetime.strptime(dt_str, "%b %d %Y %H:%M:%S")
-            except Exception:
-                data['datetime'] = None
-            ip_search = re.search(r'from (\d+\.\d+\.\d+\.\d+)', data['message'])
-            data['ip'] = ip_search.group(1) if ip_search else "-"
-            parsed.append(data)
-    return parsed
-
-def parse_nginx_log(lines):
-    parsed = []
-    for line in lines:
-        m = NGINX_PATTERN.match(line)
-        if m:
-            data = m.groupdict()
-            try:
-                data['datetime'] = datetime.strptime(
-                    data['date'].split()[0], '%d/%b/%Y:%H:%M:%S'
-                )
-            except Exception:
-                data['datetime'] = None
-            req = data['request']
-            parts = req.split()
-            if len(parts) >= 3:
-                data['method'] = parts[0]
-                data['protocol'] = parts[-1]
-                data['url'] = " ".join(parts[1:-1])
-            else:
-                data['method'], data['url'], data['protocol'] = '', '', ''
-            parsed.append(data)
-    return parsed
-
-def detect_log_format(lines):
-    for line in lines[:10]:
-        if NGINX_PATTERN.match(line):
-            return 'nginx'
-        if APACHE_PATTERN.match(line):
-            return 'apache'
-        if SYSLOG_PATTERN.match(line):
-            return 'syslog'
-    return None
-
-def parse_log_dynamic(lines):
-    fmt = detect_log_format(lines)
-    if fmt == 'nginx':
-        return parse_nginx_log(lines), 'nginx'
-    elif fmt == 'apache':
-        return parse_apache_log(lines), 'apache'
-    elif fmt == 'syslog':
-        return parse_syslog(lines), 'syslog'
-    else:
-        return [], None
-
-def analyze(parsed_logs, log_type):
-    stats = {}
-    stats['total_requests'] = len(parsed_logs)
-
-    if log_type in ('apache', 'nginx'):
-        stats['ip_counter']   = Counter(l['ip'] for l in parsed_logs)
-        stats['top_ips']      = stats['ip_counter'].most_common(5)
-        stats['url_counter']  = Counter(l['url'] for l in parsed_logs)
-        stats['top_urls']     = stats['url_counter'].most_common(5)
-        stats['status_counter'] = Counter(l['status'] for l in parsed_logs)
-    elif log_type == 'syslog':
-        stats['ip_counter']   = Counter(l['ip'] for l in parsed_logs if l.get('ip') and l['ip'] != '-')
-        stats['top_ips']      = stats['ip_counter'].most_common(5)
-        stats['url_counter']  = Counter(l['service'] for l in parsed_logs if 'service' in l)
-        stats['top_urls']     = stats['url_counter'].most_common(5)
-        stats['status_counter'] = Counter()
-
-    stats['brute_force'] = []
-    if log_type in ('apache', 'nginx'):
-        login_failures = defaultdict(list)
-        for l in parsed_logs:
-            if '/login' in l['url'] and l['status'] in ['401', '403']:
-                login_failures[l['ip']].append(l['datetime'])
-
-        for ip, times in login_failures.items():
-            times = sorted(t for t in times if t is not None)
-            for i in range(len(times) - 4):
-                if (times[i + 4] - times[i]).total_seconds() <= 60:
-                    stats['brute_force'].append(ip)
-                    break
-        stats['brute_force'] = list(set(stats['brute_force']))
-    elif log_type == 'syslog':
-        login_failures = defaultdict(list)
-        for l in parsed_logs:
-            if 'Failed password' in l.get('message', '') and l.get('ip') != '-':
-                login_failures[l['ip']].append(l['datetime'])
-        for ip, times in login_failures.items():
-            times = sorted(t for t in times if t is not None)
-            for i in range(len(times) - 4):
-                if (times[i + 4] - times[i]).total_seconds() <= 60:
-                    stats['brute_force'].append(ip)
-                    break
-        stats['brute_force'] = list(set(stats['brute_force']))
-
-    stats['error_ips'] = []
-    if log_type in ('apache', 'nginx'):
-        for ip in stats['ip_counter']:
-            err_count = sum(
-                1 for l in parsed_logs
-                if l['ip'] == ip and (l['status'].startswith('4') or l['status'].startswith('5'))
-            )
-            if err_count > 10:
-                stats['error_ips'].append(ip)
-    elif log_type == 'syslog':
-        for ip in stats['ip_counter']:
-            err_count = sum(
-                1 for l in parsed_logs
-                if l['ip'] == ip and (
-                    'failed password' in l.get('message', '').lower()
-                    or 'error' in l.get('message', '').lower()
-                    or 'fail' in l.get('message', '').lower()
-                )
-            )
-            if err_count > 10:
-                stats['error_ips'].append(ip)
-
-    # --- Ungewöhnliche Zugriffszeiten (nachts 0-5 Uhr) ---
-    stats['night_ips'] = []
-    for ip in stats['ip_counter']:
-        times = [
-            l['datetime'] for l in parsed_logs
-            if l['ip'] == ip and l.get('datetime') and l['datetime'].hour < 5
-        ]
-        if len(times) > 10:
-            stats['night_ips'].append(ip)
-
-    stats['traversal_attempts'] = []
-    if log_type in ('apache', 'nginx'):
-        stats['traversal_attempts'] = detect_traversal_attempts(parsed_logs, TRAVERSAL_PATTERNS)
-
-    stats['sqli_attempts'] = []
-    if log_type in ('apache', 'nginx'):
-        stats['sqli_attempts'] = detect_sqli_attempts(parsed_logs, SQLI_PATTERNS)
-
-    stats['root_logins'] = []
-    if log_type == 'syslog':
-        stats['root_logins'] = [
-            {
-                'ip': l.get('ip', ''),
-                'datetime': l.get('datetime', ''),
-                'message': l.get('message', '')
-            }
-            for l in parsed_logs
-            if 'sshd' in l.get('service', '')
-            and 'Accepted' in l.get('message', '')
-            and 'for root' in l.get('message', '')
-        ]
-
-    return stats
-
-@app.route('/', methods=['GET', 'POST'])
+@app.get("/")
 def index():
-    stats = None
-    alert = None
-    log_type = None
-    if request.method == 'POST':
-        if 'logfile' not in request.files:
-            flash('No file part')
-            return redirect(request.url)
-        file = request.files['logfile']
-        if file.filename == '':
-            flash('No selected file')
-            return redirect(request.url)
-        if file and allowed_file(file.filename):
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-            file.save(filepath)
-            with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-                lines = f.readlines()
-            parsed_logs, log_type = parse_log_dynamic(lines)
-            stats = analyze(parsed_logs, log_type) if parsed_logs else None
-            if stats and (stats['brute_force'] or stats['error_ips'] or stats['night_ips']):
-                alert = "Suspicious Activity Detected!"
-            return render_template('index.html', stats=stats, alert=alert, log_type=log_type)
-        else:
-            flash('Invalid file type')
-    return render_template('index.html', stats=stats, alert=alert, log_type=log_type)
+    return render_template("index.html")
 
-@app.route('/api/analyze', methods=['POST'])
-def analyze_api():
-    if 'logfile' not in request.files:
-        return jsonify({"error": "No file"}), 400
-    file = request.files['logfile']
-    if file.filename == '' or not allowed_file(file.filename):
-        return jsonify({"error": "Invalid file"}), 400
-    lines = file.read().decode('utf-8', errors='ignore').splitlines()
-    parsed_logs, log_type = parse_log_dynamic(lines)
-    if not parsed_logs:
-        return jsonify({"error": "Unbekanntes Log-Format"}), 400
-    stats = analyze(parsed_logs, log_type)
-    stats['log_type'] = log_type
+@app.get("/health")
+def health():
+    return jsonify({"status": "ok"})
+
+@app.post("/analyze")
+def analyze():
+    # Datei?
+    if "file" in request.files and request.files["file"].filename:
+        raw = request.files["file"].read(MAX_BYTES + 1)
+        if len(raw) > MAX_BYTES:
+            return jsonify({"error": "file too large"}), 413
+        text = raw.decode("utf-8", errors="ignore")
+    # Text?
+    elif request.form.get("content"):
+        text = request.form["content"]
+        if len(text.encode("utf-8")) > MAX_BYTES:
+            return jsonify({"error": "text too large"}), 413
+    else:
+        return jsonify({"error": "no input"}), 400
+
+    lines = text.splitlines()
+    parsed = parse_lines(lines)
+    stats = build_stats(parsed)
+
+    # optionale aktive Alerts (Slack/Email/Webhook); DRYRUN in alerts.py
+    if ENABLE_ACTIVE_ALERTS:
+        global _SENT_ALERTS
+        _SENT_ALERTS = globals().get("_SENT_ALERTS", set())
+        want_warning = (MIN_ALERT_SEVERITY == "warning")
+        for a in stats.get("alerts", []):
+            if a["severity"] == "critical" or (want_warning and a["severity"] == "warning"):
+                key = (a["type"], a["ip"], a.get("first_ts"), a.get("last_ts"))
+                if key in _SENT_ALERTS:  # dedupe während Laufzeit
+                    continue
+                report_critical({
+                    "type": a["type"],
+                    "ip": a["ip"],
+                    "path": (a.get("samples") or ["-"])[0]
+                })
+                try:
+                    from alerts import send_webhook
+                    send_webhook({
+                        "source": "security-log-analyzer",
+                        "severity": a["severity"],
+                        "type": a["type"],
+                        "ip": a["ip"],
+                        "count": a["count"],
+                        "reasons": a.get("reasons"),
+                        "first_ts": a.get("first_ts"),
+                        "last_ts": a.get("last_ts"),
+                        "samples": a.get("samples"),
+                    })
+                except Exception:
+                    pass
+                _SENT_ALERTS.add(key)
+
     return jsonify(stats)
 
-
-@app.route('/api/export', methods=['POST'])
+@app.post("/export.csv")
 def export_csv():
-    if 'logfile' not in request.files:
-        return jsonify({"error": "No file"}), 400
-    file = request.files['logfile']
-    if file.filename == '' or not allowed_file(file.filename):
-        return jsonify({"error": "Invalid file"}), 400
-    lines = file.read().decode('utf-8', errors='ignore').splitlines()
-    parsed_logs, log_type = parse_log_dynamic(lines)
-    if not parsed_logs:
-        return jsonify({"error": "Unbekanntes Log-Format"}), 400
-    stats = analyze(parsed_logs, log_type)
+    # Re-Use von /analyze für Eingabe + Stats
+    resp = analyze()
+    if isinstance(resp, tuple):  # (json, status) bei Fehler
+        return resp
+    data = resp.get_json()
 
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['IP', 'URL', 'Status', 'Time', 'BruteForce', 'SQLi', 'Traversal', 'Night', 'Errors'])
-    for log in parsed_logs:
-        ip = log.get('ip', '')
-        url = log.get('url', '')
-        status = log.get('status', '')
-        dt = log.get('datetime', '')
-        is_bf = ip in stats.get('brute_force', [])
-        is_sqli = any(at['ip'] == ip and at['url'] == url for at in stats.get('sqli_attempts', []))
-        is_trav = any(at['ip'] == ip and at['url'] == url for at in stats.get('traversal_attempts', []))
-        is_night = ip in stats.get('night_ips', [])
-        is_error = ip in stats.get('error_ips', [])
-        writer.writerow([ip, url, status, dt, is_bf, is_sqli, is_trav, is_night, is_error])
-    output.seek(0)
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(["ip", "status", "type"])
+    for ip, cnt in data.get("top_ips", []):
+        w.writerow([ip, "", "top_ip"])
+    for k in ("bruteforce", "sqli", "traversal", "sensitive", "scanners"):
+        for ip, cnt in (data.get(k) or {}).items():
+            w.writerow([ip, "", k])
 
-    return send_file(
-        io.BytesIO(output.getvalue().encode()),
-        mimetype="text/csv",
-        as_attachment=True,
-        download_name="log_analysis.csv"
-    )
+    out.seek(0)
+    return send_file(io.BytesIO(out.getvalue().encode("utf-8")),
+                     mimetype="text/csv", as_attachment=True, download_name="analysis.csv")
 
-if __name__ == '__main__':
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    app.run(debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000, debug=True)

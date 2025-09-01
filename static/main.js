@@ -1,156 +1,134 @@
-document.addEventListener("DOMContentLoaded", function () {
-    const form = document.getElementById("uploadForm");
-    const alertsDiv = document.getElementById("alerts");
-    const dashboard = document.getElementById("dashboard");
-    const totalRequests = document.getElementById("totalRequests");
-    const topIps = document.getElementById("topIps");
-    const topUrls = document.getElementById("topUrls");
-    const securityAlerts = document.getElementById("securityAlerts");
-    let statusChart, ipChart;
+let ipChart = null;
+let statusChart = null;
+let busy = false;
 
-    form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        alertsDiv.innerHTML = "";
-        dashboard.style.display = "none";
+function $(id) { return document.getElementById(id); }
 
-        const fileInput = form.querySelector("input[type=file]");
-        if (!fileInput.files.length) {
-            showAlert("Bitte Datei auswählen.", true);
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append("logfile", fileInput.files[0]);
-
-        fetch("/api/analyze", {
-            method: "POST",
-            body: formData,
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) {
-                showAlert(data.error, true);
-                return;
-            }
-            showStats(data);
-        })
-        .catch(() => {
-            showAlert("Server-Fehler oder keine Verbindung.", true);
-        });
-    });
-
-    const exportBtn = document.getElementById("exportCsvBtn");
-    if (exportBtn) {
-    exportBtn.addEventListener("click", function () {
-        const fileInput = form.querySelector("input[type=file]");
-        if (!fileInput.files.length) {
-            showAlert("Bitte Datei auswählen.", true);
-            return;
-        }
-        const formData = new FormData();
-        formData.append("logfile", fileInput.files[0]);
-        fetch("/api/export", {
-            method: "POST",
-            body: formData,
-        })
-        .then(response => {
-            if (!response.ok) throw new Error("Download fehlgeschlagen");
-            return response.blob();
-        })
-        .then(blob => {
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "log_analysis.csv";
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
-        })
-        .catch(() => {
-            showAlert("Export fehlgeschlagen.", true);
-        });
-    });
+function resetVisuals() {
+  if (ipChart)  { ipChart.destroy();  ipChart = null; }
+  if (statusChart) { statusChart.destroy(); statusChart = null; }
+  const alerts = $('securityAlerts');
+  if (alerts) alerts.textContent = 'Lade…';
 }
 
-    function showAlert(msg, isError) {
-        alertsDiv.innerHTML = `<div class="alert${isError ? " error" : ""}">${msg}</div>`;
-    }
+function setCsvFormFromContent(content) {
+  const form = $('csvForm');
+  if (!form) return;
+  form.innerHTML = '';
+  const hidden = document.createElement('input');
+  hidden.type = 'hidden';
+  hidden.name = 'content';
+  hidden.value = content;
+  form.appendChild(hidden);
+  const btn = document.createElement('button');
+  btn.className = 'btn ghost';
+  btn.id = 'btnCsv';
+  btn.type = 'submit';
+  btn.textContent = 'CSV exportieren';
+  form.appendChild(btn);
+}
 
-    function showStats(stats) {
-        dashboard.style.display = "block";
-        totalRequests.textContent = stats.total_requests;
-        topIps.textContent = stats.top_ips.map(ip => `${ip[0]} (${ip[1]})`).join(", ");
-        topUrls.textContent = stats.top_urls.map(url => `${url[0]} (${url[1]})`).join(", ");
+function renderStats(data) {
+  const ipCtx = $('ipChart').getContext('2d');
+  const stCtx = $('statusChart').getContext('2d');
 
-        const ctx1 = document.getElementById('statusChart').getContext('2d');
-        if (statusChart) statusChart.destroy();
-        statusChart = new Chart(ctx1, {
-            type: 'pie',
-            data: {
-                labels: Object.keys(stats.status_counter),
-                datasets: [{
-                    data: Object.values(stats.status_counter),
-                }]
-            }
-        });
+  const ipLabels = (data.top_ips || []).map(([ip, _]) => ip);
+  const ipValues = (data.top_ips || []).map(([_, cnt]) => cnt);
+  ipChart = new Chart(ipCtx, {
+    type: 'bar',
+    data: { labels: ipLabels, datasets: [{ label: 'Hits pro IP', data: ipValues }] },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
 
-        const ctx2 = document.getElementById('ipChart').getContext('2d');
-        if (ipChart) ipChart.destroy();
-        ipChart = new Chart(ctx2, {
-            type: 'bar',
-            data: {
-                labels: stats.top_ips.map(ip => ip[0]),
-                datasets: [{
-                    label: 'Requests',
-                    data: stats.top_ips.map(ip => ip[1]),
-                }]
-            },
-            options: {
-                plugins: { legend: { display: false } },
-                indexAxis: 'y',
-            }
-        });
+  const st = (data.statuses || []).slice().sort((a,b)=>a[0]-b[0]);
+  const stLabels = st.map(([code, _]) => code);
+  const stValues = st.map(([_, cnt]) => cnt);
+  statusChart = new Chart(stCtx, {
+    type: 'line',
+    data: { labels: stLabels, datasets: [{ label: 'Requests pro Statuscode', data: stValues, tension: .3 }] },
+    options: { responsive: true }
+  });
 
-        let alerts = "";
-        if (
-            (stats.brute_force && stats.brute_force.length) ||
-            (stats.error_ips && stats.error_ips.length) ||
-            (stats.night_ips && stats.night_ips.length) ||
-            (stats.traversal_attempts && stats.traversal_attempts.length) ||
-            (stats.sqli_attempts && stats.sqli_attempts.length) ||
-            (stats.root_logins && stats.root_logins.length)
-        ) {
-            if (stats.brute_force && stats.brute_force.length)
-                alerts += `<div class="warn">Mögliche Brute-Force-Angriffe von: ${stats.brute_force.join(", ")}</div>`;
-            if (stats.error_ips && stats.error_ips.length)
-                alerts += `<div class="warn">Auffällige IPs mit vielen Fehlern: ${stats.error_ips.join(", ")}</div>`;
-            if (stats.night_ips && stats.night_ips.length)
-                alerts += `<div class="warn">Ungewöhnliche Zugriffszeiten (nachts) von: ${stats.night_ips.join(", ")}</div>`;
-            if (stats.traversal_attempts && stats.traversal_attempts.length) {
-                alerts += `<div class="warn"><b>Directory Traversal/Scanner-Angriffe erkannt:</b><br>`;
-                stats.traversal_attempts.forEach(attempt => {
-                    alerts += `[${attempt.datetime ? attempt.datetime : "-"}] IP: ${attempt.ip} → ${attempt.url}<br>`;
-                });
-                alerts += `</div>`;
-            }
-            if (stats.sqli_attempts && stats.sqli_attempts.length) {
-                alerts += `<div class="warn"><b>SQL Injection-Versuche erkannt:</b><br>`;
-                stats.sqli_attempts.forEach(attempt => {
-                    alerts += `[${attempt.datetime ? attempt.datetime : "-"}] IP: ${attempt.ip} → ${attempt.url}<br>`;
-                });
-                alerts += `</div>`;
-            }
-            if (stats.root_logins && stats.root_logins.length) {
-                alerts += `<div class="warn"><b>SSH-Root-Logins erkannt:</b><br>`;
-                stats.root_logins.forEach(attempt => {
-                    alerts += `[${attempt.datetime ? attempt.datetime : "-"}] IP: ${attempt.ip} – ${attempt.message}<br>`;
-                });
-                alerts += `</div>`;
-            }
-        } else {
-            alerts = "<p>Keine Auffälligkeiten gefunden.</p>";
-        }
-        securityAlerts.innerHTML = alerts;
-    }
+  const container = $('securityAlerts');
+  const explained = data.alerts || [];
+  if (explained.length === 0) {
+    container.textContent = 'Keine Alerts gefunden.';
+    return;
+  }
+  const html = explained.map(a => {
+    const tag = a.severity === 'critical' ? 'tag-bad' : 'tag-warn';
+    const reasons = (a.reasons || []).map(r => `<li>${r}</li>`).join('');
+    const samples = (a.samples || []).map(s => `<code>${s}</code>`).join('<br>');
+    const when = (a.first_ts || a.last_ts)
+      ? `<div class="kv"><span>Zeitraum:</span><span>${a.first_ts || '—'} → ${a.last_ts || '—'}</span></div>`
+      : '';
+    return `
+      <details class="alert-item">
+        <summary>
+          ${a.type} <strong>${a.ip}</strong> (${a.count})
+          <span class="tag ${tag}">${a.severity === 'critical' ? 'kritisch' : 'verdächtig'}</span>
+        </summary>
+        <div class="alert-body">
+          <ul class="reasons">${reasons}</ul>
+          ${when}
+          ${samples ? `<div class="kv"><span>Beispiele:</span><span>${samples}</span></div>` : ''}
+        </div>
+      </details>
+    `;
+  }).join('');
+  container.innerHTML = html;
+}
+
+async function analyzeFile() {
+  if (busy) return;
+  const input = $('fileInput');
+  const f = input && input.files[0];
+  if (!f) return alert('Bitte zuerst eine Datei wählen.');
+  busy = true; resetVisuals();
+
+  try {
+    const text = await f.text();
+    const fd = new FormData();
+    fd.append('file', new File([text], f.name, { type: 'text/plain' }));
+    const res = await fetch('/analyze', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || 'Fehler bei der Analyse.');
+    renderStats(data);
+    setCsvFormFromContent(text);
+  } catch (e) {
+    alert('Fehler: ' + e.message);
+  } finally {
+    if (input) input.value = '';
+    busy = false;
+  }
+}
+
+async function analyzeText() {
+  if (busy) return;
+  const content = ($('logText') && $('logText').value) || '';
+  if (!content.trim()) return alert('Bitte Logtext einfügen.');
+  busy = true; resetVisuals();
+
+  try {
+    const res = await fetch('/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ content })
+    });
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || 'Fehler bei der Analyse.');
+    renderStats(data);
+    setCsvFormFromContent(content);
+  } catch (e) {
+    alert('Fehler: ' + e.message);
+  } finally {
+    busy = false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const btnFile = $('btnAnalyzeFile');
+  const btnText = $('btnAnalyzeText');
+  if (btnFile) btnFile.addEventListener('click', analyzeFile);
+  if (btnText) btnText.addEventListener('click', analyzeText);
 });

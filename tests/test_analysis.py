@@ -9,7 +9,7 @@ def test_detect_bruteforce_finds_ip():
     ]
 
     result = detect_bruteforce(logs, threshold=3)
-    # Prüfen, ob die IP erkannt wurde
+
     assert '1.2.3.4' in result
     assert result['1.2.3.4'] == 3
 
