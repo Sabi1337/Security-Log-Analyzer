@@ -1,126 +1,230 @@
 # 🔐 Security Log Analyzer
 
-Ein leichtgewichtiges Python-Tool zur Analyse von Webserver-Logs (Apache, Nginx, Syslog) mit Fokus auf die Erkennung von Sicherheitsbedrohungen wie Brute-Force-Angriffe, SQL-Injection und Directory Traversal.
+**Stateless** Web-Tool (Flask + Chart.js) zur schnellen Analyse von Access- & Syslog-Dateien – mit **erklärbaren Security-Alerts** (Brute-Force, SSH, SQLi, Traversal, optional Sensitive, Scanner/Recon).
+
+**Live-Demo:**  `https://security-log-analyzer.onrender.com`  
+**Stateless:** Es wird nichts gespeichert; Verarbeitung nur im RAM. CSV-Export & Mini-API inklusive.
+
+
+## Features
+
+* **Stateless Analyse:** Upload **oder** Freitext; Verarbeitung nur im RAM
+* **Visualisierungen:** Charts für **Top-IPs** & **Statuscodes** (Chart.js)
+* **Erklärbare Alerts:** Gründe, Zeitraum & Beispiel-URLs (Brute-Force, **SSH**, **SQLi**, **Traversal**, optional Sensitive, Scanner/Recon)
+* **CSV-Export:** One-Shot Export
+* **Konfigurierbar:** Pattern-Dateien (`SQLI_*.txt`, `TRAVERSAL_*.txt`, `SENSITIVE_*.txt`), Whitelist, mehrstufiges URL-Decoding
+* **Ops-ready:** Health-Check `/health`, Gunicorn-Start, CI, Docker-bereit
 
 ---
-## Bedeutung der Log-Analyse in der IT-Security
-Das strukturierte Auswerten von Logfiles ist ein zentrales Element in der modernen IT-Security. Logdaten ermöglichen es, sicherheitsrelevante Ereignisse wie Angriffsversuche, Fehlkonfigurationen oder ungewöhnliche Aktivitäten frühzeitig zu erkennen und gezielt darauf zu reagieren. Die Fähigkeit, Logdaten effizient zu analysieren und daraus Maßnahmen abzuleiten, ist heute in nahezu allen Bereichen der Informationssicherheit von zentraler Bedeutung.
+
+## Screenshot
+
+<img width="1251" height="1279" alt="image" src="https://github.com/user-attachments/assets/9c0421fe-ad05-4581-aead-11aeb535ad12" />
 
 ---
 
-# Beispielauswertung: Dashboard, Statuscodes & Security Alerts
-![Übersicht,Statuscodeverteilung](https://github.com/user-attachments/assets/a4dc35c0-5270-495d-870d-271e44aa2bb5)
-![Balken,Security Alerts](https://github.com/user-attachments/assets/5a205a25-8b70-4bb4-9abf-7e4e44197f30)
+## Quickstart
 
+Voraussetzung: **Python 3.10+**
 
+```bash
+git clone https://github.com/Sabi1337/Security-Log-Analyzer.git
+cd Security-Log-Analyzer
 
-## Funktionen
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+# source venv/bin/activate
 
-- Unterstützung für gängige Logformate: Apache, Nginx, Syslog
-- Erkennung von Angriffsmustern mittels regulärer Ausdrücke
-- Webbasiertes Dashboard mit Flask zur Visualisierung der Ergebnisse
-- Modularer Aufbau für einfache Erweiterbarkeit
-- Integration von Pattern-Dateien für SQL-Injection und Directory Traversal
----
+pip install -r requirements.txt
+# Windows:
+copy .env.example .env
+# macOS/Linux:
+# cp .env.example .env
 
-## Installation
-
-### Voraussetzungen
-
-- Python 3.8 oder höher
-- Pip (Python Package Installer)
-
-### Schritte
-1. Repository klonen:
-   ```bash
-   git clone https://github.com/Sabi1337/Security-Log-Analyzer.git
-   cd Security-Log-Analyzer
-   pip install -r requirements.txt
----
-
-## 📂 Projektstruktur
-
-```plaintext
-  Security-Log-Analyzer/
-  ├── app.py                   # Hauptanwendung mit Flask
-  ├── log_parser.py            # Parser für verschiedene Logformate
-  ├── pattern_matcher.py       # Erkennung von Angriffsmustern
-  ├── templates/
-  │   └── index.html           # HTML-Template für das Dashboard
-  ├── static/
-  │   └── style.css            # CSS-Datei für das Dashboard
-  ├── test_logs/
-  │   ├── apache.log           # Beispiel-Logdatei für Apache
-  │   ├── nginx.log            # Beispiel-Logdatei für Nginx
-  │   └── syslog.log           # Beispiel-Logdatei für Syslog
-  ├── SQLI_PATTERNS.txt        # Muster für SQL-Injection
-  ├── TRAVERSAL_PATTERNS.txt   # Muster für Directory Traversal
-  └── README.md                # Diese Dokumentation
+python main.py
 ```
----
 
-## ⚙️ Nutzung
+App öffnen: [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
-1. Anwendung starten:
-   ```bash
-   python app.py
+**Smoke-Test** (im UI → „optional Logtext einfügen“):
 
-2.Im Browser öffnen:
-http://localhost:5000
-
----
-
-## 🧪 Beispiel-Logdateien
-
-Im Verzeichnis `test_logs/` befinden sich Beispiel-Logdateien für Apache, Nginx und Syslog, die zur Demonstration und zum Testen der Anwendung genutzt werden können.
----
-
-## 🔍 Angriffsmuster
-
-Die Anwendung nutzt reguläre Ausdrücke, um spezifische Angriffsmuster zu erkennen:
-
-- **SQL-Injection:** Definiert in `SQLI_PATTERNS.txt`
-- **Directory Traversal:** Definiert in `TRAVERSAL_PATTERNS.txt`
-
-Diese Dateien können erweitert werden, um zusätzliche Muster zu erfassen.
---- 
-
-## 📈 Dashboard
-
-Das integrierte Dashboard bietet eine übersichtliche Darstellung der Analyseergebnisse, einschließlich:
-
-- Anzahl der erkannten Angriffe pro Typ
-- Zeitliche Verteilung der Angriffe
-- Betroffene IP-Adressen und Endpunkte
+```
+203.0.113.5 - - [21/May/2025:01:02:10 +0000] "POST /login HTTP/1.1" 401 234
+203.0.113.5 - - [21/May/2025:01:02:20 +0000] "POST /login HTTP/1.1" 401 234
+203.0.113.2 - - [21/May/2025:13:11:52 +0000] "GET /..%2f..%2fetc%2fpasswd HTTP/1.1" 404 98
+203.0.113.1 - - [21/May/2025:12:44:10 +0000] "GET /login.php?username=admin&password=' OR 1=1 -- HTTP/1.1" 200 1032
+```
 
 ---
 
-## 🧩 Erweiterungsmöglichkeiten
+## Konfiguration-Env
 
-- **Weitere Angriffsmuster:** Integration zusätzlicher Pattern-Dateien für andere Angriffstypen
-- **Authentifizierung:** Implementierung eines Login-Systems für das Dashboard
-- **Datenbankanbindung:** Speicherung der Analyseergebnisse in einer Datenbank
-- **Benachrichtigungen:** Versand von Alerts bei Erkennung kritischer Angriffe
+Nutze `.env.example` als Vorlage:
+
+```env
+FLASK_SECRET_KEY=change-me
+MAX_BYTES=1048576
+
+# Detection
+BF_THRESHOLD=5
+SSH_BF_THRESHOLD=5
+WHITELIST_IPS=
+IGNORE_PRIVATE_IPS=0   # Demo: 0 (auch 10./172./192.168.* sichtbar), Prod: 1
+DECODE_DEPTH=2         # mehrstufiges %-Decoding
+SCAN_UA=1
+ENABLE_SENSITIVE=0     # optional
+
+# Pattern-Dateien
+SQLI_PATTERNS_FILE=SQLI_PATTERNS.txt
+TRAVERSAL_PATTERNS_FILE=TRAVERSAL_PATTERNS.txt
+SENSITIVE_PATTERNS_FILE=SENSITIVE_PATTERNS.txt
+
+# Aktive Alerts (Demo: nur Konsole)
+ENABLE_ACTIVE_ALERTS=1
+MIN_ALERT_SEVERITY=warning
+DRY_RUN_ALERTS=1
+
+# Ziele (nur setzen, wenn wirklich senden)
+SLACK_WEBHOOK_URL=
+GENERIC_WEBHOOK_URL=
+SMTP_HOST=
+SMTP_USER=
+SMTP_PASS=
+ALERT_EMAIL_TO=
+```
+
+**Produktion:** `IGNORE_PRIVATE_IPS=1`, `MIN_ALERT_SEVERITY=critical`, `DRY_RUN_ALERTS=0` + Ziel (Slack/SMTP/Webhook) setzen.  
+**Check:** Beim Start erscheint `PATTERN COUNTS: X SQLi, Y Traversal, Z Sensitive`.
 
 ---
 
-## 🤝 Mitwirken
+## Benutzung
 
-Beiträge sind herzlich willkommen! Bitte folge diesen Schritten:
+### UI
 
-1. Forke das Repository
-2. Erstelle einen neuen Branch: `git checkout -b feature/neues-feature`
-3. Führe deine Änderungen durch und committe sie: `git commit -m 'Füge neues Feature hinzu'`
-4. Pushe den Branch: `git push origin feature/neues-feature`
-5. Erstelle einen Pull Request
+1. Datei wählen **oder** Logtext einfügen  
+2. „Analysieren“ → Charts & **Security Alerts**  
+3. Optional: **CSV exportieren**
+
+### API
+
+**POST** `/analyze`
+
+* `multipart/form-data` mit `file` **oder**
+* `application/x-www-form-urlencoded` mit `content=<logtext>`
+
+Beispiel:
+
+```bash
+curl -X POST http://localhost:8000/analyze   -H "Content-Type: application/x-www-form-urlencoded"   --data-urlencode "content=203.0.113.5 - - [..] \"GET /login HTTP/1.1\" 401 123"
+```
+
+**POST** `/export.csv` – gleicher Input, liefert CSV-Stream.
 
 ---
 
-## 📄 Lizenz
+## Angriffsmuster--Patterns
 
-Dieses Projekt steht unter der MIT-Lizenz. Weitere Informationen findest du in der Datei `LICENSE`.
+* **SQL-Injection:** `SQLI_PATTERNS.txt`
+* **Directory Traversal:** `TRAVERSAL_PATTERNS.txt`
+* **Sensitive Files (optional):** `SENSITIVE_PATTERNS.txt`
+
+Pattern sind **case-insensitive Substrings**. URLs werden bis zu `DECODE_DEPTH` decodiert (erkennt `%2e%2e`, `%27%20or%201%3D1` etc.).  
+Tipp: präzise Pfade statt generischer Wörter eintragen.
 
 ---
 
-*Diese erweiterte Dokumentation soll sowohl Entwicklern als auch Sicherheitsexperten einen klaren Überblick über die Funktionalitäten und Einsatzmöglichkeiten des Security Log Analyzers bieten.*
+## Tests
 
+Installation & Run:
+
+```bash
+pip install -r requirements.txt
+pip install pytest
+pytest -q
+```
+
+Enthalten: Parser-, Detection-, API-, Whitelist- & Pattern-Loader-Tests (`tests/`).
+
+---
+
+## Projektstruktur
+
+```
+.
+├─ main.py                 # Flask-App (stateless)
+├─ analysis.py             # Parser & Detections (erklärbare Alerts)
+├─ alerts.py               # Slack/SMTP/Webhook (optional)
+├─ templates/index.html    # UI
+├─ static/{styles.css,main.js}
+├─ SQLI_PATTERNS.txt
+├─ TRAVERSAL_PATTERNS.txt
+├─ SENSITIVE_PATTERNS.txt  # optional
+├─ test_logs/              # Beispiel-Logs
+├─ tests/                  # pytest
+├─ .github/workflows/ci.yml
+└─ requirements.txt
+```
+
+---
+
+## Deployment-Render
+
+* **Build:**  
+  `pip install --upgrade pip && pip install -r requirements.txt`
+* **Start:**  
+  `gunicorn -w 2 -k gthread --threads 4 --timeout 60 -b 0.0.0.0:$PORT main:app`
+* **Health Check:** `/health`  
+* **Env Vars:** siehe `.env.example`
+
+---
+
+## Docker
+
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+ENV FLASK_ENV=production
+CMD ["bash", "-lc", "gunicorn -w 2 -k gthread --threads 4 --timeout 60 -b 0.0.0.0:$PORT main:app"]
+```
+
+---
+
+## Sicherheitshinweise
+
+* **Keine Persistenz**, Limit via `MAX_BYTES`  
+* **URL-Fetch** deaktiviert  
+* Pattern-basiert → **False Positives** möglich  
+* Prod: Private-IPs ignorieren, Severity hochsetzen, echtes Alert-Ziel konfigurieren
+
+---
+
+## Roadmap
+
+* Rate-Limit pro Request
+* Light/Dark-Toggle
+* Weitere Pattern-Sets (WordPress, Laravel, phpMyAdmin)
+* JSON-Export
+* OpenAPI-Spec
+
+---
+
+## Mitwirken
+
+PRs willkommen:
+
+1. Fork  
+2. Branch: `feat/<kurzname>`  
+3. Commit: `feat: <kurze beschreibung>`  
+4. PR erstellen
+
+---
+
+## Lizenz
+
+**MIT** – siehe `LICENSE`.
